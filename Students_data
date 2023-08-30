@@ -1,0 +1,86 @@
+--CREATE TABLE STUDENT_LIST 
+
+create table student_list (
+roll_number int,
+student_name varchar,
+class int,
+section varchar,
+school_name varchar
+)
+
+select * from student_list
+
+copy student_list from 'C:\ProgramData\PostgreSQL 15\Dataset_n_Scripts\student_list.csv' CSV header;
+
+
+--CREATE TABLE STUDENT_RESPONSE
+
+create table student_response (
+roll_number int,
+question_paper_code int,
+question_number int,
+option_marked varchar 
+)
+
+select * from student_response
+
+copy student_response from 'C:\ProgramData\PostgreSQL 15\Dataset_n_Scripts\student_response.csv' CSV header
+
+
+--CREATE TABLE CORRECT_ANSWERS
+
+create table correct_answers (
+question_paper_code int,
+question_number int,
+correct_option varchar 
+)
+
+select * from correct_answers
+
+copy correct_answers from 'C:\ProgramData\PostgreSQL 15\Dataset_n_Scripts\correct_answer.csv' CSV header
+
+
+--CREATE TABLE QUESTION_PAPER_CODE
+
+create table question_paper_code (
+paper_code int,
+class int,
+subject varchar 
+)
+
+select * from question_paper_code
+
+copy question_paper_code from 'C:\ProgramData\PostgreSQL 15\Dataset_n_Scripts\question_paper_code.csv' CSV header
+
+
+/*Validate the student response and present it in a single table. Write a query to print roll_number, student_name,
+class, section, school_name, math_correct, math_wrong, math_yet_to_learn, math_score, math_percentage,
+science_correct, science_wrong, science_yet_to_learn, science_score, science_percentage.*/
+
+select * from student_list
+select * from student_response where roll_number = 10159
+select * from correct_answers where question_paper_code = 501
+select * from question_paper_code
+
+with cte as (
+select sl.roll_number, sl.student_name, sl.class, sl.section, sl.school_name,
+sum(case when ca.correct_option = sr.option_marked and sr.option_marked != 'e' and pc.subject = 'Math' then 1 else 0 end) as math_correct,
+sum(case when ca.correct_option != sr.option_marked and sr.option_marked != 'e' and pc.subject = 'Math' then 1 else 0 end) as math_wrong,
+sum(case when sr.option_marked = 'e' and pc.subject = 'Math' then 1 else 0 end) as math_yet_to_learn,
+sum(case when pc.subject = 'Math' then 1 else 0 end) as total_math_question,
+sum(case when ca.correct_option = sr.option_marked and sr.option_marked != 'e' and pc.subject = 'Science' then 1 else 0 end) as science_correct,
+sum(case when ca.correct_option != sr.option_marked and sr.option_marked != 'e' and pc.subject = 'Science' then 1 else 0 end) as science_wrong,
+sum(case when sr.option_marked = 'e' and pc.subject = 'Science' then 1 else 0 end) as science_yet_to_learn,
+sum(case when pc.subject = 'Science' then 1 else 0 end) as total_science_question
+from student_list as sl
+join student_response as sr on sl.roll_number = sr.roll_number
+join correct_answers as ca on ca.question_paper_code = sr.question_paper_code and ca.question_number = sr.question_number
+join question_paper_code as pc on ca.question_paper_code = pc.paper_code
+group by 1,2,3,4,5 )
+
+select roll_number, student_name, class, section, school_name, 
+math_correct, math_wrong, math_yet_to_learn, math_correct as math_score, 
+round((math_correct::decimal / total_math_question::decimal) * 100,2) as math_percentage,
+science_correct, science_wrong, science_yet_to_learn, science_correct as science_score, 
+round((science_correct::decimal / total_science_question::decimal) * 100,2) as science_percentage
+from cte
